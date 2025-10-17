@@ -121,8 +121,18 @@ export default function DashboardPage() {
 
   const availableWidgets = useMemo(() => Object.entries(widgetDefinitions) as [WidgetType, WidgetDefinition][], [])
 
-  function addWidget(type: WidgetType) {
-    setWidgets(prev => [...prev, { id: crypto.randomUUID(), type }])
+function createWidgetId() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  const random = typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function'
+    ? crypto.getRandomValues(new Uint8Array(1))[0]
+    : Math.floor(Math.random() * 255)
+  return `widget-${Date.now().toString(16)}-${random.toString(16)}`
+}
+
+function addWidget(type: WidgetType) {
+  setWidgets(prev => [...prev, { id: createWidgetId(), type }])
     setPickerOpen(false)
   }
 
