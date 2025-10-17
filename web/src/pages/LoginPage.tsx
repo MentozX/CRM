@@ -16,8 +16,8 @@ async function submit(e: FormEvent) {
 e.preventDefault()
 setError('')
 try {
-await login(email, password)
-nav('/clients')
+    await login(email, password)
+    nav('/')
 } catch (e) {
 setError('blad logowania')
 }
