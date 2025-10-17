@@ -1,0 +1,41 @@
+# Root ignore for CRM monorepo (web + server)
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Env files (never commit secrets)
+.env
+.env.*
+web/.env
+web/.env.*
+
+# Logs
+*.log
+logs/
+
+# Node/Vite (frontend)
+web/node_modules/
+web/dist/
+web/dist-ssr/
+web/.vite/
+
+# .NET (backend)
+server/**/bin/
+server/**/obj/
+server/.vs/
+server/**/*.user
+server/**/*.suo
+
+# Coverage / test outputs (if added later)
+coverage/
+TestResults/
+
+# Docker local files (if any)
+.docker/
+
