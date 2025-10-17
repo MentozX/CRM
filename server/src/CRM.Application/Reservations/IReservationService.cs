@@ -10,6 +10,7 @@ public interface IReservationService
     Task UpdateAsync(Guid id, UpdateReservationRequest request, CancellationToken cancellationToken = default);
     Task DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ReservationTimelineDto> GetForClientAsync(Guid clientId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ReservationCalendarItemDto>> GetForRangeAsync(DateOnly start, DateOnly end, CancellationToken cancellationToken = default);
 }
 
 public sealed record CreateReservationRequest(

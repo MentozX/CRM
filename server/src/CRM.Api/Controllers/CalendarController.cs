@@ -55,6 +55,22 @@ public class CalendarController(IReservationService reservationService, ILogger<
         }
     }
 
+    [HttpGet("range")]
+    public async Task<ActionResult<IReadOnlyList<ReservationCalendarItemDto>>> GetRange([FromQuery] string? start, [FromQuery] string? end, CancellationToken cancellationToken)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var startDay = string.IsNullOrWhiteSpace(start) ? StartOfWeek(today) : ParseRequiredDate(start);
+        var endDay = string.IsNullOrWhiteSpace(end) ? startDay.AddDays(6) : ParseRequiredDate(end);
+
+        if (endDay < startDay)
+        {
+            return BadRequest(new { message = "Parametr 'end' musi być datą późniejszą niż 'start'." });
+        }
+
+        var items = await reservationService.GetForRangeAsync(startDay, endDay, cancellationToken);
+        return Ok(items);
+    }
+
     [HttpGet("client/{clientId:guid}")]
     public async Task<ActionResult<ReservationTimelineDto>> GetForClient(Guid clientId, CancellationToken cancellationToken)
     {
@@ -136,6 +152,13 @@ public class CalendarController(IReservationService reservationService, ILogger<
             "consultation" or "konsultacja" => ReservationServiceType.Consultation,
             _ => throw new ArgumentOutOfRangeException(nameof(value), "Nieprawidłowy typ wizyty.")
         };
+    }
+
+    private static DateOnly StartOfWeek(DateOnly date)
+    {
+        var dayOfWeek = (int)date.DayOfWeek;
+        var offset = dayOfWeek == 0 ? 6 : dayOfWeek - 1; // Monday start
+        return date.AddDays(-offset);
     }
 }
 

@@ -530,7 +530,7 @@ return (
                       navigate(`/clients/${c.id}`)
                     }}
                   >
-                    Szczegoly
+                    Szczegóły
                   </button>
                   <button
                     className="button button-danger"
@@ -541,7 +541,7 @@ return (
                     }}
                     disabled={deletingId === String(c.id)}
                   >
-                    {deletingId === String(c.id) ? 'Usuwanie...' : 'Usun'}
+                    {deletingId === String(c.id) ? 'Usuwanie...' : 'Usuń'}
                   </button>
                 </div>
               </td>
@@ -553,9 +553,9 @@ return (
     {confirmTarget && (
       <div className="modal" role="dialog" aria-modal="true" onClick={() => setConfirmTarget(null)}>
         <div className="modal-card" onClick={e => e.stopPropagation()}>
-          <h3>Usun klienta</h3>
-          <p>Czy na pewno chcesz usunac klienta <strong>{confirmTarget.firstName} {confirmTarget.lastName}</strong>?</p>
-          <p className="detail-label">Operacja jest nieodwracalna.</p>
+          <h3>Usuń klienta</h3>
+          <p>Czy na pewno chcesz usunąć klienta? <strong>{confirmTarget.firstName} {confirmTarget.lastName}</strong>?</p>
+          <p className="detail-label">Ta operacja jest nieodwracalna.</p>
           <div className="modal-actions">
             <button
               className="button button-danger"

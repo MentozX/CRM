@@ -129,6 +129,23 @@ internal sealed class ReservationService(IUnitOfWork unitOfWork) : IReservationS
 
         return new ReservationTimelineDto(upcoming, past.OrderByDescending(item => item.Start).ToList());
     }
+    public async Task<IReadOnlyList<ReservationCalendarItemDto>> GetForRangeAsync(DateOnly start, DateOnly end, CancellationToken cancellationToken = default)
+    {
+        var reservationRepository = unitOfWork.Repository<Reservation>();
+        var (rangeStartUtc, _) = GetUtcRange(start);
+        // extend end to include full day
+        var (_, rangeEndUtc) = GetUtcRange(end);
+
+        var reservations = await reservationRepository.ListAsync(
+            r => r.ScheduledAtUtc >= rangeStartUtc && r.ScheduledAtUtc < rangeEndUtc,
+            query => query.Include(r => r.Client).Include(r => r.Treatment),
+            cancellationToken);
+
+        return reservations
+            .OrderBy(r => r.ScheduledAtUtc)
+            .Select(MapToDto)
+            .ToList();
+    }
 
     private static (DateTime StartUtc, DateTime EndUtc) GetUtcRange(DateOnly day)
     {
@@ -185,7 +202,7 @@ internal sealed class ReservationService(IUnitOfWork unitOfWork) : IReservationS
             clientName,
             MapServiceType(reservation.ServiceType),
             reservation.TreatmentId,
-            reservation.Treatment?.Name,
+            reservation.ServiceType == ReservationServiceType.Treatment ? "Zabieg" : "Konsultacja",
             date,
             time,
             reservation.DurationMinutes,
@@ -203,7 +220,7 @@ internal sealed class ReservationService(IUnitOfWork unitOfWork) : IReservationS
         var localStart = reservation.ScheduledAtUtc.ToLocalTime();
         var startIso = localStart.ToString("yyyy-MM-dd'T'HH:mm", CultureInfo.InvariantCulture);
         var serviceLabel = reservation.ServiceType == ReservationServiceType.Treatment
-            ? reservation.Treatment?.Name ?? "Zabieg"
+            ? "Zabieg"
             : "Konsultacja";
 
         return new ReservationClientEntryDto(

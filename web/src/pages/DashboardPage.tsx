@@ -1,4 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { listReservationsInRange } from '../api/reservations'
+import type { CalendarReservation } from '../types'
 
 type WidgetType = 'upcomingVisits' | 'clientStats' | 'birthdays' | 'revenue'
 
@@ -40,15 +42,82 @@ const fallbackWidgets: DashboardWidget[] = [
   { id: 'initial-upcoming', type: 'upcomingVisits' }
 ]
 
-const upcomingMock = [
-  { id: '1', client: 'Anna Nowak', service: 'Mezoterapia igłowa', when: 'Pon 09:30', staff: 'dr Kowalska' },
-  { id: '2', client: 'Jakub Mista', service: 'Botoks', when: 'Wt 12:00', staff: 'dr Zieliński' },
-  { id: '3', client: 'Michał Testowy', service: 'Peeling chemiczny', when: 'Czw 15:30', staff: 'mgr Lis' }
-]
+function formatWeekRangeAnchor(date: Date) {
+  const copy = new Date(date)
+  copy.setHours(0, 0, 0, 0)
+  const day = copy.getDay()
+  const diff = (day + 6) % 7
+  const start = new Date(copy)
+  start.setDate(copy.getDate() - diff)
+  const end = new Date(start)
+  end.setDate(start.getDate() + 6)
+  return { start, end }
+}
+
+function formatDateOnly(value: Date) {
+  const year = value.getFullYear()
+  const month = `${value.getMonth() + 1}`.padStart(2, '0')
+  const day = `${value.getDate()}`.padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function createVisitLabel(item: CalendarReservation) {
+  const startIso = `${item.date}T${item.startTime}`
+  const dt = new Date(startIso)
+  const weekday = dt.toLocaleDateString('pl-PL', { weekday: 'long' })
+  const time = dt.toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+  const serviceLabel = item.serviceType === 'treatment' ? 'Zabieg' : 'Konsultacja'
+  return {
+    id: item.id,
+    title: serviceLabel,
+    client: item.clientName,
+    when: `${weekday}, ${time}`,
+    duration: item.durationMinutes,
+    notes: item.notes ?? ''
+  }
+}
 
 export default function DashboardPage() {
   const [widgets, setWidgets] = useState<DashboardWidget[]>(fallbackWidgets)
   const [isPickerOpen, setPickerOpen] = useState(false)
+  const [upcomingVisits, setUpcomingVisits] = useState<CalendarReservation[]>([])
+  const [upcomingLoading, setUpcomingLoading] = useState(false)
+  const [upcomingError, setUpcomingError] = useState('')
+
+  const { start: startDate, end: endDate } = useMemo(() => {
+    const range = formatWeekRangeAnchor(new Date())
+    return {
+      start: formatDateOnly(range.start),
+      end: formatDateOnly(range.end)
+    }
+  }, [])
+
+  const upcomingItems = useMemo(() => upcomingVisits.map(createVisitLabel), [upcomingVisits])
+
+  useEffect(() => {
+    let active = true
+    setUpcomingLoading(true)
+    setUpcomingError('')
+    listReservationsInRange(startDate, endDate)
+      .then(data => {
+        if (!active) return
+        setUpcomingVisits(data)
+      })
+      .catch(err => {
+        console.error(err)
+        if (!active) return
+        setUpcomingVisits([])
+        setUpcomingError('Nie udało się pobrać wizyt.')
+      })
+      .finally(() => {
+        if (!active) return
+        setUpcomingLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [startDate, endDate])
 
   const availableWidgets = useMemo(() => Object.entries(widgetDefinitions) as [WidgetType, WidgetDefinition][], [])
 
@@ -66,14 +135,14 @@ export default function DashboardPage() {
       <header className="dashboard-header">
         <div>
           <h2>Pulpit</h2>
-          <p>Konfiguruj własne widżety, aby mieć szybki podgląd najważniejszych danych.</p>
+          <p>Skonfiguruj swój pulpit dowolnymi widgetami, aby mieć szybki podgląd najważniejszych danych.</p>
         </div>
         <button className="button" onClick={() => setPickerOpen(true)}>+ Dodaj widget</button>
       </header>
 
       {widgets.length === 0 && (
         <div className="card" style={{ textAlign: 'center', padding: 40 }}>
-          <p>Brak widżetów. Kliknij „Dodaj widget”, aby rozpocząć.</p>
+          <p>Brak widgetów. Kliknij „Dodaj widget”, aby rozpocząć.</p>
         </div>
       )}
 
@@ -85,15 +154,30 @@ export default function DashboardPage() {
               <button className="widget-remove" onClick={() => removeWidget(widget.id)}>×</button>
             </header>
             {widget.type === 'upcomingVisits' && (
-              <ul className="widget-list">
-                {upcomingMock.map(item => (
-                  <li key={item.id}>
-                    <div className="widget-primary">{item.when}</div>
-                    <div className="widget-secondary">{item.client} – {item.service}</div>
-                    <div className="widget-note">Specjalista: {item.staff}</div>
-                  </li>
-                ))}
-              </ul>
+              <div className="widget-scroll">
+                {upcomingLoading && (
+                  <div className="widget-placeholder"><p>Ładowanie wizyt...</p></div>
+                )}
+                {!upcomingLoading && upcomingError && (
+                  <div className="widget-placeholder"><p>{upcomingError}</p></div>
+                )}
+                {!upcomingLoading && !upcomingError && upcomingItems.length === 0 && (
+                  <div className="widget-placeholder"><p>Brak wizyt w tym tygodniu.</p></div>
+                )}
+                {!upcomingLoading && !upcomingError && upcomingItems.length > 0 && (
+                  upcomingItems.map(item => (
+                    <div key={item.id} className="widget-visit">
+                      <div className="widget-visit-header">
+                        <span>{item.when}</span>
+                        <span>{item.duration} min</span>
+                      </div>
+                      <div className="widget-visit-primary">{item.title}</div>
+                      <div className="widget-visit-secondary">{item.client}</div>
+                      {item.notes && <div className="widget-visit-note">{item.notes}</div>}
+                    </div>
+                  ))
+                )}
+              </div>
             )}
             {widget.type !== 'upcomingVisits' && (
               <div className="widget-placeholder">

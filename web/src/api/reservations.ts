@@ -42,3 +42,8 @@ export async function deleteReservation(id: string): Promise<void> {
 export async function getClientReservations(clientId: string): Promise<ClientReservationTimeline> {
   return http<ClientReservationTimeline>(`/api/calendar/client/${clientId}`)
 }
+
+export async function listReservationsInRange(start: string, end: string): Promise<CalendarReservation[]> {
+  const params = new URLSearchParams({ start, end })
+  return http<CalendarReservation[]>(`/api/calendar/range?${params.toString()}`)
+}
